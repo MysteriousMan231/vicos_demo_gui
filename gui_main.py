@@ -24,53 +24,53 @@ def load_demos(root: str = "./demos") -> dict:
 
     demos = {}
 
-    for demoName in os.listdir(root):
+    for demo_name in os.listdir(root):
         
-        demoRoot = root + "/" + demoName
-        demoHasCfg = False
-        demoHasScene = False
+        demo_root = root + "/" + demo_name
+        demo_has_cfg = False
+        demo_has_scene = False
 
-        for demoFiles in os.listdir(demoRoot):
-            demoHasCfg = demoHasCfg or demoFiles == "cfg.xml"
-            demoHasScene = demoHasScene or demoFiles == "scene.py"
+        for demo_files in os.listdir(demo_root):
+            demo_has_cfg = demo_has_cfg or demo_files == "cfg.xml"
+            demo_has_scene = demo_has_scene or demo_files == "scene.py"
 
-        if demoHasCfg and demoHasScene:
-            modulePath = "demos." + demoName + "." + "scene"
-            module = import_module(modulePath)
+        if demo_has_cfg and demo_has_scene:
+            module_path = "demos." + demo_name + "." + "scene"
+            module = import_module(module_path)
 
-            xmlValid = [False, False, False, False]
-            sceneValid = hasattr(module, "get_scene")
+            xml_valid = [False, False, False, False]
+            scene_valid = hasattr(module, "get_scene")
 
-            xmlPath = demoRoot + "/cfg.xml"
-            xmlTree = ET.parse(xmlPath)
+            xml_path = demo_root + "/cfg.xml"
+            xml_tree = ET.parse(xml_path)
 
-            xmlCfgRoot = xmlTree.getroot()
-            xmlParsed = {}
+            xml_cfg_root = xml_tree.getroot()
+            xml_parsed = {}
 
-            if xmlCfgRoot.tag == "cfg":
-                for xmlC in list(xmlCfgRoot): # Iterator for children
-                    if xmlC.tag == "demoId":
-                        xmlParsed[xmlC.tag] = xmlC.text
-                        xmlValid[0] = True
-                    elif xmlC.tag == "dockerId":
-                        xmlParsed[xmlC.tag] = xmlC.text
-                        xmlValid[1] = True
-                    elif xmlC.tag == "highlight":
-                        xmlParsed[xmlC.tag] = xmlC.text
-                        xmlValid[2] = True
-                    elif xmlC.tag == "video":
-                        xmlParsed[xmlC.tag] = demoRoot + "/" + xmlC.text
-                        xmlValid[3] = True
-            xmlValid = all(xmlValid)
+            if xml_cfg_root.tag == "cfg":
+                for xml_c in list(xml_cfg_root): # Iterator for children
+                    if xml_c.tag == "demoId":
+                        xml_parsed[xml_c.tag] = xml_c.text
+                        xml_valid[0] = True
+                    elif xml_c.tag == "dockerId":
+                        xml_parsed[xml_c.tag] = xml_c.text
+                        xml_valid[1] = True
+                    elif xml_c.tag == "highlight":
+                        xml_parsed[xml_c.tag] = xml_c.text
+                        xml_valid[2] = True
+                    elif xml_c.tag == "video":
+                        xml_parsed[xml_c.tag] = demo_root + "/" + xml_c.text
+                        xml_valid[3] = True
+            xml_valid = all(xml_valid)
                         
-            if xmlValid and sceneValid:
-                if xmlParsed["demoId"] in demos.keys():
-                    print("Duplicated demo id -> {}".format(xmlParsed["demoId"]))
+            if xml_valid and scene_valid:
+                if xml_parsed["demoId"] in demos.keys():
+                    print("Duplicated demo id -> {}".format(xml_parsed["demoId"]))
                 else:
-                    demos[xmlParsed["demoId"]] = {"cfg": xmlParsed, "get_scene": module.get_scene}
+                    demos[xml_parsed["demoId"]] = {"cfg": xml_parsed, "get_scene": module.get_scene}
             else:
                 # TODO better error reporting
-                print("{} is not valid.".format(modulePath))
+                print("{} is not valid.".format(module_path))
 
     return dict(sorted(demos.items(), key = lambda x: x[1]["cfg"]["highlight"]))
 
