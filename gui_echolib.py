@@ -1,6 +1,7 @@
 from threading import Thread, Lock
 from echolib import pyecho
 import echocv
+import time
 
 class EcholibHandler:
     """
@@ -74,7 +75,7 @@ class EcholibHandler:
 
     def run(self):
         
-        while self.loop.wait(1) and self.running:
+        while self.loop.wait(20) and self.running:
             
             self.docker_commands_lock.acquire()
             if len(self.docker_commands) > 0:
@@ -95,6 +96,8 @@ class EcholibHandler:
             else:
                 self.docker_commands_lock.release()
     
+            time.sleep(0.1)
+
     def append_command(self, command):
 
         self.docker_commands_lock.acquire()
@@ -125,8 +128,9 @@ class EcholibHandler:
 
         self.docker_camera_stream_lock.acquire()
         if self.docker_camera_stream_image_new:
+
             self.docker_camera_stream_image_new = True
-            frame                           = self.docker_camera_stream_image.copy()
+            frame = self.docker_camera_stream_image.copy()
             self.docker_camera_stream_lock.release()
 
             return frame
@@ -150,8 +154,13 @@ class EcholibHandler:
 
     def __callback_camera_stream(self, message):
         
+        print("Waiting for acquire...")
+
         self.docker_camera_stream_lock.acquire()
         self.docker_camera_stream_image    = echocv.readMat(pyecho.MessageReader(message))
+
+        print(f"New camera stream image: {self.docker_camera_stream_image[0:5, 0:5, 0]}")
+
         self.docker_camera_stream_image_new = True
         self.docker_camera_stream_lock.release()
 
