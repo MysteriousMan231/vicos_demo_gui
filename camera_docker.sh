@@ -1,6 +1,6 @@
 #! /bin/bash
 
-IMAGEID="a9b15de3412a" # The camera docker image ID
+IMAGEID="7be22b9b5c16" # The camera docker image ID
 ECHO="/tmp/echo.sock"
 WEBCAMERA="/dev/video0:/dev/video0"
 
