@@ -9,10 +9,12 @@ def get_scene(parameters):
 
     def get_docker_texture(gui: Gui, state):
 
-        if not state.echolib_handler.docker_channel_ready:
-            return None
+        echolib_handler = state.echolib_handler
 
-        return state.echolib_handler.get_image() if state.traffic_detection else state.echolib_handler.get_camera_stream()
+        if not echolib_handler.docker_channel_ready:
+            return None
+        
+        return echolib_handler.get_image() if state.traffic_detection == 1 else echolib_handler.get_camera_stream()
 
     def toggle_detection(button: Button, gui: Gui, state):
 
@@ -25,8 +27,6 @@ def get_scene(parameters):
                 button.set_colour(colour = vicos_gray)
             else:
                 button.set_colour(colour = vicos_red)
-
-            print("Vkljuci detekcijo {}".format(toggle))
 
             state.echolib_handler.append_command((state.echolib_handler.docker_channel_out, toggle))
 

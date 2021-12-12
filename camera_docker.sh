@@ -1,20 +1,14 @@
 #! /bin/bash
 
-IMAGEID="7be22b9b5c16" # The camera docker image ID
 ECHO="/tmp/echo.sock"
-WEBCAMERA="/dev/video0:/dev/video0"
+CAMERACONFIGFOLDER="/home/vicosdemosystem/Documents/vicos_demo_new/vicos_demo_dockers/camera_docker_allied_vision/config"
 
 FLYCAPUTRECAMERADEVICE="/dev/bus/usb/001"
-ALLIEDVISIONDEVICE="/dev/bus/usb/002"
+ALLIEDVISIONDEVICE="/dev/bus/usb"
 
-if [ -e /dev/video0 ]
-then
-    docker run -it --device=${WEBCAMERA} \
-    --device=${FLYCAPUTRECAMERADEVICE}:${FLYCAPUTRECAMERADEVICE} \
-    --device=${ALLIEDVISIONDEVICE}:${ALLIEDVISIONDEVICE} \
-    --mount src=${ECHO},target=${ECHO},type=bind --entrypoint=/bin/bash ${IMAGEID}
-else
-    docker run -it --device=${FLYCAPUTRECAMERADEVICE}:${FLYCAPUTRECAMERADEVICE} \
-    --device=${ALLIEDVISIONDEVICE}:${ALLIEDVISIONDEVICE} \
-    --mount src=${ECHO},target=${ECHO},type=bind --entrypoint=/bin/bash ${IMAGEID}
-fi
+
+docker run -it \
+--device=${ALLIEDVISIONDEVICE}:${ALLIEDVISIONDEVICE} \
+--mount src=${CAMERACONFIGFOLDER},target=/opt/config,type=bind \
+--mount src=${ECHO},target=${ECHO},type=bind \
+--entrypoint=/bin/bash camerafeed_allied_echolib_old:v1

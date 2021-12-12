@@ -29,7 +29,7 @@ class DockerManager():
 
         while not self.stop:
             command = None
-
+            #print("loop")
             #if (time.time() - start) > 1.0:
             #    print("Running container: {}".format(self.active_container[0]))
             #    start = time.time()
@@ -54,6 +54,8 @@ class DockerManager():
 
                             output_channel = "outContainer" + str(command[0])
                             input_channel  = "inContainer"  + str(command[0])
+
+                            print(f"{output_channel} {input_channel}")
 
                             w = pyecho.MessageWriter()
                             w.writeString(output_channel + " " + input_channel)
@@ -107,6 +109,7 @@ def main():
     th = Thread(target = dm.process)
     th.start()
 
+    print("waiting for pyecho")
     try:
         while dm.pyecho_loop.wait(10):
             time.sleep(0.001)

@@ -1,7 +1,10 @@
 from threading import Thread, Lock
-from echolib import pyecho
+import echolib
 import echocv
+from echolib import pyecho
 import time
+
+import numpy as np
 
 class EcholibHandler:
     """
@@ -11,7 +14,7 @@ class EcholibHandler:
     Attributes
     ----------
 
-    self.docker_publisher: pyecho.Publisher
+    self.docker_publisher: echolib.Publisher
         A publisher on the "dockerIn" channel. Commands in
         the form of a string are sent to the dockerManager.
         Command structure is "<open/close> <demos[demoKey]["cfg"]["dockerId"]>"
@@ -20,7 +23,7 @@ class EcholibHandler:
         denoted by an id, which is stored in the demo's 
         corresponding cfg.xml file.
 
-    self.docker_subscriber: pyecho.Subscriber
+    self.docker_subscriber: echolib.Subscriber
         A subscriber to the "dockerOut" channel. Responses
         to commands sent over "dockerIn" are recieved on this
         channel. The response contains the string names of
@@ -30,12 +33,12 @@ class EcholibHandler:
         can be read, the other denotes the channel through
         which commands can be sent to the demo container.
 
-    self.docker_channel_ready_sub: pyecho.Subscriber
+    self.docker_channel_ready_sub: echolib.Subscriber
         A subscriber to the "containerReady" channel. The
         initiated demo container sends a ready signal when
         it is prepaired to send and recieve data.
 
-    self.docker_camera_stream: pyecho.Subscriber
+    self.docker_camera_stream: echolib.Subscriber
         A subscriber to the "cameraStream" channel. Images
         in RGB format, read from the demo system camera are
         broadcasted on this channel from the camera container.
@@ -44,13 +47,13 @@ class EcholibHandler:
 
     def __init__(self):
 
-        self.loop   = pyecho.IOLoop()
-        self.client = pyecho.Client()
+        self.loop   = echolib.IOLoop()
+        self.client = echolib.Client()
         self.loop.add_handler(self.client)
 
-        self.docker_publisher    = pyecho.Publisher(self.client,  "dockerIn",  "string")
-        self.docker_subscriber   = pyecho.Subscriber(self.client, "dockerOut", "string", self.__callback_command)
-        self.docker_camera_stream = pyecho.Subscriber(self.client, "cameraStream", "numpy.ndarray", self.__callback_camera_stream)
+        self.docker_publisher    = echolib.Publisher(self.client,  "dockerIn",  "string")
+        self.docker_subscriber   = echolib.Subscriber(self.client, "dockerOut", "string", self.__callback_command)
+        self.docker_camera_stream = echolib.Subscriber(self.client, "camera0", "numpy.ndarray", self.__callback_camera_stream)
 
         self.docker_camera_stream_lock = Lock()
         self.docker_camera_stream_image_new = False
@@ -59,27 +62,27 @@ class EcholibHandler:
 
         self.docker_image_lock = Lock()
         self.docker_image_new  = False
-        self.docker_image     = None
+        self.docker_image      = None
 
         self.docker_commands_lock = Lock()
         self.docker_commands     = []
 
         self.docker_channel_in       = None
         self.docker_channel_out      = None
-        self.docker_channel_ready_sub = pyecho.Subscriber(self.client, "containerReady", "int", self.__callback_ready)
+        self.docker_channel_ready_sub = echolib.Subscriber(self.client, "containerReady", "int", self.__callback_ready)
         self.docker_channel_ready    = False
 
         self.running = True
 
-        #self.handler_thread = Thread(target = self.run)
-        #self.handler_thread.start()
+        self.handler_thread = Thread(target = self.run)
+        self.handler_thread.start()
 
-        self.run()
+        #self.run()
 
     def run(self):
         
-        while self.loop.wait(200) and self.running:
-
+        while self.loop.wait(10) and self.running:
+	    
             self.docker_commands_lock.acquire()
             if len(self.docker_commands) > 0:
                 
@@ -87,15 +90,16 @@ class EcholibHandler:
 
                 print("Processing command -> {}".format(command[1]))
                 
-                writer = pyecho.MessageWriter()
+                writer = echolib.MessageWriter()
                 if type(command[1]) is str:
                     writer.writeString(command[1])
                 elif type(command[1]) is int:
                     writer.writeInt(command[1])
 
-                command[0].send(writer)   
-
+                command[0].send(writer)
+        
             self.docker_commands_lock.release() 
+            #time.sleep(1)
             
 
     def append_command(self, command):
@@ -106,46 +110,28 @@ class EcholibHandler:
 
     def get_image(self):
 
-        #self.docker_image_lock.acquire()
-        """ if self.docker_image_new:
-            self.docker_image_new = False
+        image = self.docker_image if self.docker_image_new else None
+        self.docker_image_new = False
 
-            return self.docker_image
-        
-        #self.docker_image_lock.release()
-        return None """
-
-        return self.docker_image
+        return image
 
     def set_image_to_none(self):
 
-        #self.docker_image_lock.acquire()
         self.docker_image_new = False
         self.docker_image    = None
-        #self.docker_image_lock.release()
 
     def get_camera_stream(self):
-
-        #self.docker_camera_stream_lock.acquire()
-        """ if self.docker_camera_stream_image_new:
-
-            self.docker_camera_stream_image_new = False
-            #frame = self.docker_camera_stream_image
-            #self.docker_camera_stream_lock.release()
-
-            return self.docker_camera_stream_image
         
-        #self.docker_camera_stream_lock.release()
-        return None """
+        image = self.docker_camera_stream_image if self.docker_camera_stream_image_new else None
+        self.docker_camera_stream_image_new = False
 
-        return self.docker_camera_stream_image
+        return image
 
     def __callback_image(self, message):
         
-        #self.docker_image_lock.acquire()
-        self.docker_image    = echocv.readMat(pyecho.MessageReader(message))
+        #self.docker_image    = _echo.readTensor(echolib.MessageReader(message))
+        self.docker_image = echocv.readMat(pyecho.MessageReader(message))
         self.docker_image_new = True
-        #self.docker_image_lock.release()
 
     def __callback_ready(self, message):
 
@@ -156,19 +142,16 @@ class EcholibHandler:
 
     def __callback_camera_stream(self, message):
         
-        print(f"Got camera image {self.docker_camera_stream_counter}")
         self.docker_camera_stream_counter += 1
-
-        #self.docker_camera_stream_lock.acquire()
         self.docker_camera_stream_image = echocv.readMat(pyecho.MessageReader(message))
+
         self.docker_camera_stream_image_new = True
-        #self.docker_camera_stream_lock.release()
 
     def __callback_command(self, message):
         
-        channels = pyecho.MessageReader(message).readString().split(" ")
+        channels = echolib.MessageReader(message).readString().split(" ")
 
         print("Docker manager callback {}".format(channels))
 
-        self.docker_channel_in    = pyecho.Subscriber(self.client, channels[0], "numpy.ndarray", self.__callback_image)
-        self.docker_channel_out   = pyecho.Publisher(self.client, channels[1], "int")
+        self.docker_channel_in    = echolib.Subscriber(self.client, channels[0], "numpy.ndarray", self.__callback_image)
+        self.docker_channel_out   = echolib.Publisher(self.client, channels[1], "int")

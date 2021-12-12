@@ -23,8 +23,11 @@ def get_scene(parameters):
         if frame is not None:
             state.polyp_detection_time = time.time()
 
-        if state.polyp_detection_time is None or time.time() - state.polyp_detection_time > 10.0:
+        if state.polyp_detection_time is None or time.time() - state.polyp_detection_time > 5.0:
             state.polyp_detection_time = None
+
+            print("Returning camera frame...")
+
             return camera_image
 
         return frame

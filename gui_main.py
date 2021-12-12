@@ -74,10 +74,12 @@ def load_demos(root: str = "./demos") -> dict:
 
     return dict(sorted(demos.items(), key = lambda x: x[1]["cfg"]["highlight"]))
 
-def demo_scene_wrapper(demo_component: dict) -> DisplayTexture:
+def demo_scene_wrapper(window_aspect_ratio: float, demo_component: dict) -> DisplayTexture:
+
+    camera_aspect_ratio = 4024.0/3036.0
 
     in_animation = AnimationList(
-        transform = ("position", [0.0, 0.0]),
+        transform = ("position", [0.5, 0.0]),
         duration  = 0.75,
         id = "in")
 
@@ -88,14 +90,17 @@ def demo_scene_wrapper(demo_component: dict) -> DisplayTexture:
 
     display = DisplayTexture(
         position = [2.0, 0.0],
-        scale    = [1.0, 1.0],
-        depth = 0.95,
+        scale    = [1.0/camera_aspect_ratio, 1.0],
+        depth  = 0.95,
+        aspect = camera_aspect_ratio,
         animations = {in_animation.id: in_animation, out_animation.id: out_animation},
         id = "demo_display_texture",
         get_texture = demo_component["get_docker_texture"])
     
     for c in demo_component["elements"]:
         c.deppends_on(element = display)
+    
+    display.offset[0] = -1.0/camera_aspect_ratio
 
     return display
 
@@ -461,7 +466,7 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
 
         if display_screen.active_demo is None:
 
-            display_screen.insert_active_demo(active_demo = demo_scene_wrapper(demos[demo_key]["get_scene"](parameters)), active_demo_button = button)
+            display_screen.insert_active_demo(active_demo = demo_scene_wrapper(aspect_ratio, demos[demo_key]["get_scene"](parameters)), active_demo_button = button)
 
             docker_command = "{} {}".format(1, demos[demo_key]["cfg"]["dockerId"])
             custom_data.echolib_handler.append_command((custom_data.echolib_handler.docker_publisher, docker_command))
@@ -489,7 +494,7 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
                 docker_command = "{} {}".format(1, demos[demo_key]["cfg"]["dockerId"])
                 custom_data.echolib_handler.append_command((custom_data.echolib_handler.docker_publisher, docker_command))
 
-                display_screen.insert_active_demo(active_demo = demo_scene_wrapper(demos[demo_key]["get_scene"](parameters)), active_demo_button = button)
+                display_screen.insert_active_demo(active_demo = demo_scene_wrapper(aspect_ratio, demos[demo_key]["get_scene"](parameters)), active_demo_button = button)
 
                 button.set_colour(colour = vicos_gray)
 
