@@ -5,38 +5,18 @@ import time
 def get_scene(parameters):
     
     vicos_red  = [226.0/255, 61.0/255, 40.0/255.0, 0.75]
+    vicos_gray = [85.0/255.0, 85.0/255.0, 85.0/255.0, 0.35]
 
     parameters.state.polyp_detection_time    = None
     parameters.state.polyp_waiting_detection = False
-
-
-    def get_docker_texture(gui: Gui, state):
-
-        echolib_handler = state.echolib_handler
-
-        if not echolib_handler.docker_channel_ready:
-            return None
-
-        frame        = echolib_handler.get_image()
-        camera_image = echolib_handler.get_camera_stream()
-
-        if frame is not None:
-            state.polyp_detection_time = time.time()
-
-        if state.polyp_detection_time is None or time.time() - state.polyp_detection_time > 5.0:
-            state.polyp_detection_time = None
-
-            print("Returning camera frame...")
-
-            return camera_image
-
-        return frame
 
     def toggle_detection(button: Button, gui: Gui, state):
 
         echolib_handler = state.echolib_handler
 
         if echolib_handler.docker_channel_out is not None:
+
+            button.set_colour(colour = vicos_gray)
 
             parameters.state.polyp_waiting_detection = True
             echolib_handler.append_command((echolib_handler.docker_channel_out, 1))
@@ -60,5 +40,27 @@ def get_scene(parameters):
     button_text.center_y()
 
     button_text.depends_on(element = button_detection)
+
+
+    def get_docker_texture(gui: Gui, state):
+
+        echolib_handler = state.echolib_handler
+
+        if not echolib_handler.docker_channel_ready:
+            return None
+
+        frame        = echolib_handler.get_image()
+        camera_image = echolib_handler.get_camera_stream()
+
+        if frame is not None:
+            state.polyp_detection_time = time.time()
+
+        if state.polyp_detection_time is None or time.time() - state.polyp_detection_time > 5.0:
+            state.polyp_detection_time = None
+
+            return camera_image
+
+        button_detection.set_colour(colour = vicos_red)
+        return frame
 
     return {"get_docker_texture": get_docker_texture, "elements": [button_detection]}
