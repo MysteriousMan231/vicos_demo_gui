@@ -51,5 +51,6 @@ def get_scene(parameters):
     button_text.center_y()
 
     button_text.depends_on(element = button_detection)
+    button_detection.center_x()
 
     return {"get_docker_texture": get_docker_texture, "elements": [button_detection]}

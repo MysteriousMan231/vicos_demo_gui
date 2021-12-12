@@ -335,8 +335,6 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
 
     for i in demos.keys():
 
-        print(i)
-
         video_icon_texture = TextureR(
             position = [0.0, 0.0],
             offset   = [-video_icon_aspect_ratio*0.05/aspect_ratio, 0.05],
