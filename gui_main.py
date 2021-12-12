@@ -98,7 +98,7 @@ def demo_scene_wrapper(window_aspect_ratio: float, demo_component: dict) -> Disp
         get_texture = demo_component["get_docker_texture"])
     
     for c in demo_component["elements"]:
-        c.deppends_on(element = display)
+        c.depends_on(element = display)
     
     display.offset[0] = -1.0/camera_aspect_ratio
 
@@ -132,14 +132,14 @@ def demo_video_scene(aspect_ratio: float, video: Video, play: np.array, pause: n
 
         if button.mouse_click_count % 2 == 0:
 
-            pause_texture.deppends_on(element = button)
+            pause_texture.depends_on(element = button)
             pause_texture.center_x()
             pause_texture.center_y()
 
             video.resume()
         else:
 
-            play_texture.deppends_on(element = button)
+            play_texture.depends_on(element = button)
             play_texture.center_x()
             play_texture.center_y()
 
@@ -171,7 +171,7 @@ def demo_video_scene(aspect_ratio: float, video: Video, play: np.array, pause: n
         shader = "circle_shader",
         id     = "video_button_play_pause")
 
-    pause_texture.deppends_on(element = button_pause_play)
+    pause_texture.depends_on(element = button_pause_play)
     pause_texture.center_x()
     pause_texture.center_y()
 
@@ -182,7 +182,7 @@ def demo_video_scene(aspect_ratio: float, video: Video, play: np.array, pause: n
         animations = {ina.id: ina, outa.id: outa},
         id = "traffic_display")
 
-    button_pause_play.deppends_on(element = display)
+    button_pause_play.depends_on(element = display)
     button_pause_play.center_x()
     button_pause_play.animation_play(animation_to_play = "button_in")
 
@@ -255,7 +255,7 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
         colour = vicos_red,
         id = "header_bar")
 
-    header_bar.deppends_on(element = display_screen)
+    header_bar.depends_on(element = display_screen)
     display_screen.insert_default(element = vicos_intro_texture)
     vicos_intro_video.play()
 
@@ -275,8 +275,8 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
         colour = vicos_red,
         id = "drawer_menu_container")
 
-    drawer_menu_container.deppends_on(element = drawer_menu)
-    drawer_menu.deppends_on(element = display_screen)
+    drawer_menu_container.depends_on(element = drawer_menu)
+    drawer_menu.depends_on(element = display_screen)
     
     def hint_constructor():
 
@@ -323,7 +323,7 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
         return pointer_texture
 
     hint = hint_constructor()
-    hint.deppends_on(element = display_screen)
+    hint.depends_on(element = display_screen)
 
     #### Construct demos ####
 
@@ -334,6 +334,8 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
     time_scale = 1.0
 
     for i in demos.keys():
+
+        print(i)
 
         video_icon_texture = TextureR(
             position = [0.0, 0.0],
@@ -423,8 +425,8 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
         button_text.set_text(font = font, text = demos[i]["cfg"]["highlight"])
         button_text.center_y()
 
-        button_text.deppends_on(element = button_main)
-        video_icon_texture.deppends_on(element = button_video)
+        button_text.depends_on(element = button_main)
+        video_icon_texture.depends_on(element = button_video)
         video_icon_texture.center_x()
         video_icon_texture.center_y()
 
@@ -502,11 +504,11 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
 
     for b in demo_buttons:
         b.on_click = on_click_demo_button
-        b.deppends_on(element = drawer_menu_container)
+        b.depends_on(element = drawer_menu_container)
 
     for b in demo_video_buttons:
         b.on_click = on_click_video_button
-        b.deppends_on(element = drawer_menu_container)
+        b.depends_on(element = drawer_menu_container)
 
     #### Set some drawer menu behaviour
 
@@ -517,15 +519,19 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
             hint.animation_play(animation_to_play = "fade_in")
 
         for b in demo_buttons:
+            b.animation_stop(animation_to_stop = "position_down")
             b.animation_play(animation_to_play = "position_up")
         for b in demo_video_buttons:
+            b.animation_stop(animation_to_stop = "position_down")
             b.animation_play(animation_to_play = "position_up")
 
     def on_grab(element, gui):
 
         for b in demo_buttons:
+            b.animation_stop(animation_to_stop = "position_up")
             b.animation_play(animation_to_play = "position_down")
         for b in demo_video_buttons:
+            b.animation_stop(animation_to_stop = "position_up")
             b.animation_play(animation_to_play = "position_down")
 
         hint.animation_play(animation_to_play = "fade_out")
@@ -585,14 +591,14 @@ def main():
         gui.frames += 1
         gui.dx = gui.dy = 0.0
 
-        timeNow = time.time()
+        """ timeNow = time.time()
         dif = timeNow - gui.time_fps
 
         if dif >= 1.0:
             print("{:.2f} fps".format(gui.frames/dif))
 
             gui.frames  = 0
-            gui.time_fps = time.time()
+            gui.time_fps = time.time() """
 
         # Handle resizing
         if (gui.resize_event is not None) and ((time.time() - gui.resize_event) >= 0.5):
