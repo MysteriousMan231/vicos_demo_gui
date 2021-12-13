@@ -147,6 +147,8 @@ def demo_video_scene(aspect_ratio: float, video: Video, play: np.array, pause: n
 
             video.pause()
 
+        print(f"Clicking on button: {button.id}")
+
     ina = AnimationList(
         transform = ("position", [0.0, 0.0]),
         duration  = 0.75,

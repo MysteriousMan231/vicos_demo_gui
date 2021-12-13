@@ -11,4 +11,4 @@ docker run -it \
 --device=${ALLIEDVISIONDEVICE}:${ALLIEDVISIONDEVICE} \
 --mount src=${CAMERACONFIGFOLDER},target=/opt/config,type=bind \
 --mount src=${ECHO},target=${ECHO},type=bind \
---entrypoint=/bin/bash camerafeed_allied_echolib_old:v1
+camerafeed_allied_echolib_old:v1

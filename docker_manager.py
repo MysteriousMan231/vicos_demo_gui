@@ -16,6 +16,7 @@ class DockerManager():
 
         self.pyechoDockerIn  = pyecho.Subscriber(self.pyecho_client, "dockerIn", "string", self.__callback)
         self.pyecho_docker_out = pyecho.Publisher(self.pyecho_client, "dockerOut", "string")
+        self.pyecho_docker_stoped = pyecho.Publisher(self.pyecho_client, "docker_stoped", "string")
 
         self.command     = None
         self.command_lock = Lock()
@@ -73,15 +74,20 @@ class DockerManager():
 
                 elif command[0] == "-1": # Stop container
                     print("Stopping contianer {}".format(command[1]))
-                    self.stopactive_container()
+                    self.stop_active_container()
 
             time.sleep(0.3)
         
-    def stopactive_container(self):
+    def stop_active_container(self):
 
         if self.active_container[0] is not None:
             try:
                 self.active_container[1].stop()
+
+                w = pyecho.MessageWriter()
+                w.writeString(self.active_container[0])
+                self.pyecho_docker_stoped.send(w)
+
             except:
                 print("Error stopping docker container...")
 
@@ -90,7 +96,7 @@ class DockerManager():
     def __handle_container(self, tag):
         
         if self.active_container[0] != tag:
-            self.stopactive_container()
+            self.stop_active_container()
 
             return True
 
@@ -120,7 +126,7 @@ def main():
     dm.stop = True
     th.join()
 
-    dm.stopactive_container()
+    dm.stop_active_container()
     
 
 if __name__ == '__main__':

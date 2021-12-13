@@ -54,6 +54,7 @@ class EcholibHandler:
         self.docker_publisher    = echolib.Publisher(self.client,  "dockerIn",  "string")
         self.docker_subscriber   = echolib.Subscriber(self.client, "dockerOut", "string", self.__callback_command)
         self.docker_camera_stream = echolib.Subscriber(self.client, "camera0", "numpy.ndarray", self.__callback_camera_stream)
+        self.docker_stopped = pyecho.Subscriber(self.client, "docker_stoped", "string", self.__callback_stop)
 
         self.docker_camera_stream_lock = Lock()
         self.docker_camera_stream_image_new = False
@@ -77,6 +78,8 @@ class EcholibHandler:
         self.handler_thread = Thread(target = self.run)
         self.handler_thread.start()
 
+        self.n_ready = 0
+
         #self.run()
 
     def run(self):
@@ -99,9 +102,8 @@ class EcholibHandler:
                 command[0].send(writer)
         
             self.docker_commands_lock.release() 
-            #time.sleep(1)
+            time.sleep(0.01)
             
-
     def append_command(self, command):
 
         self.docker_commands_lock.acquire()
@@ -137,8 +139,9 @@ class EcholibHandler:
 
         # TODO Perhaps doing this in a thread unsafe way? Might not matter
         self.docker_channel_ready = True 
+        self.n_ready += 1
 
-        print("Demo container ready signal...")
+        print(f"Demo container ready signal {self.n_ready}...")
 
     def __callback_camera_stream(self, message):
         
@@ -155,3 +158,12 @@ class EcholibHandler:
 
         self.docker_channel_in    = echolib.Subscriber(self.client, channels[0], "numpy.ndarray", self.__callback_image)
         self.docker_channel_out   = echolib.Publisher(self.client, channels[1], "int")
+
+    def __callback_stop(self, message):
+
+        stopped_container = echolib.MessageReader(message).readString()
+        
+        print(f"Container {stopped_container} stopped...")
+
+        self.docker_image = None
+        self.docker_image_new = False
