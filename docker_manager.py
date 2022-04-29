@@ -1,4 +1,5 @@
-from echolib import pyecho
+import echolib
+
 import docker
 import time
 
@@ -10,13 +11,13 @@ class DockerManager():
         self.active_container = [None, None]
         self.docker          = docker.from_env()
 
-        self.pyecho_loop   = pyecho.IOLoop()
-        self.pyecho_client = pyecho.Client()
+        self.pyecho_loop   = echolib.IOLoop()
+        self.pyecho_client = echolib.Client()
         self.pyecho_loop.add_handler(self.pyecho_client)
 
-        self.pyechoDockerIn  = pyecho.Subscriber(self.pyecho_client, "dockerIn", "string", self.__callback)
-        self.pyecho_docker_out = pyecho.Publisher(self.pyecho_client, "dockerOut", "string")
-        self.pyecho_docker_stoped = pyecho.Publisher(self.pyecho_client, "docker_stoped", "string")
+        self.pyechoDockerIn  = echolib.Subscriber(self.pyecho_client, "dockerIn", "string", self.__callback)
+        self.pyecho_docker_out = echolib.Publisher(self.pyecho_client, "dockerOut", "string")
+        self.pyecho_docker_stoped = echolib.Publisher(self.pyecho_client, "docker_stoped", "string")
 
         self.command     = None
         self.command_lock = Lock()
@@ -29,11 +30,8 @@ class DockerManager():
         #start = time.time()
 
         while not self.stop:
+
             command = None
-            #print("loop")
-            #if (time.time() - start) > 1.0:
-            #    print("Running container: {}".format(self.active_container[0]))
-            #    start = time.time()
 
             self.command_lock.acquire()
             if self.command is not None:
@@ -58,7 +56,7 @@ class DockerManager():
 
                             print(f"{output_channel} {input_channel}")
 
-                            w = pyecho.MessageWriter()
+                            w = echolib.MessageWriter()
                             w.writeString(output_channel + " " + input_channel)
                             self.pyecho_docker_out.send(w)
                             
@@ -66,7 +64,6 @@ class DockerManager():
 
                                 self.active_container[0] = command[1]
                                 self.active_container[1] = self.docker.containers.run(image.id,\
-                                    output_channel + " " + input_channel,\
                                     device_requests=[docker.types.DeviceRequest(count=1, driver="nvidia", capabilities=[['gpu']])],\
                                     remove=True, detach=True,\
                                     volumes = {"/tmp/echo.sock" : {"bind" : "/tmp/echo.sock", "mode" : "rw"}})
@@ -84,7 +81,7 @@ class DockerManager():
             try:
                 self.active_container[1].stop()
 
-                w = pyecho.MessageWriter()
+                w = echolib.MessageWriter()
                 w.writeString(self.active_container[0])
                 self.pyecho_docker_stoped.send(w)
 
@@ -105,7 +102,7 @@ class DockerManager():
     def __callback(self, message):
 
         self.command_lock.acquire()
-        self.command = pyecho.MessageReader(message).readString()
+        self.command = echolib.MessageReader(message).readString()
         print("Got command: {}".format(self.command))
         self.command_lock.release()
 

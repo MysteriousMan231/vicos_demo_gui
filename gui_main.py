@@ -1,9 +1,8 @@
 from math import ceil
+from venv import create
 import numpy as np
-import time
 
 import glfw
-from   glfw import poll_events, swap_buffers
 
 from opengl_gui.gui_components import *
 from opengl_gui.gui_helper     import *
@@ -193,8 +192,10 @@ def demo_video_scene(aspect_ratio: float, video: Video, play: np.array, pause: n
     return display
 
 
-def scene_primary(windowWidth: int, windowHeight: int, application_state: State, font: dict) -> Element:
+def scene_primary(windowWidth: int, window_height: int, application_state: State, font: dict) -> Element:
     
+    camera_aspect_ratio = 4024.0/3036.0
+
     demos = load_demos()
     demo_videos = {}
 
@@ -202,9 +203,9 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
         video = Video(path = demos[d]["cfg"]["video"], loop = True)
         demo_videos[d] = video
 
-    aspect_ratio = windowWidth/windowHeight
+    aspect_ratio = windowWidth/window_height
     icon_width  = int( windowWidth*0.1)
-    icon_height = int(windowHeight*0.1)
+    icon_height = int(window_height*0.1)
 
     video_icon = rasterize_svg(path = "./res/icons/video-solid.svg",          width = icon_width*1.0, height = icon_height*1.0)
     point_icon = rasterize_svg(path = "./res/icons/hand-pointer.svg",         width = icon_width*0.7, height = icon_height*0.7)
@@ -219,6 +220,7 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
     white = [1.0, 1.0, 1.0, 1.0]
     vicos_red  = [226.0/255, 61.0/255, 40.0/255.0, 0.75]
     vicos_gray = [85.0/255.0, 85.0/255.0, 85.0/255.0, 0.35]
+    vicos_gray_non_transparent = [85.0/255.0, 85.0/255.0, 85.0/255.0, 0.8]
     header_height = 0.05
 
     display_screen = DemoDisplay(
@@ -265,20 +267,310 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
 
     drawer_menu = DrawerMenu(
         position = [0.9, header_height],
-        scale = [1.0, 1.0 - header_height],
-        id = "drawer_menu",
-        position_opened = 0.55,
-        position_closed = 0.9)
-
+        scale    = [1.0, 1.0 - header_height],
+        position_opened = [0.55, header_height],
+        position_closed = [0.90, header_height],
+        id = "drawer_menu")
     drawer_menu_container = Container(
         position = [0.1, 0.0],
         scale = [0.35, 1.0 - header_height],
-        depth = 0.95,
         colour = vicos_red,
         id = "drawer_menu_container")
-
     drawer_menu_container.depends_on(element = drawer_menu)
-    drawer_menu.depends_on(element = display_screen)
+
+    def calibration_on_grab(component, gui: Gui):
+
+        if len(component.dependent_components[0].dependent_components) > 0:
+            return
+
+        for c in create_calibration_menu():
+            c.depends_on(element = component.dependent_components[0])
+            c.update_geometry(parent = component.dependent_components[0])
+
+    def calibration_on_close(component, gui: Gui):
+        component.dependent_components[0].dependent_components.clear()
+
+    drawer_menu_calibration = DrawerMenu(
+        position = [0.0, 0.9],
+        scale    = [1.0, 1.0 + header_height],
+        position_opened = [0.0,-header_height],
+        position_closed = [0.0, 0.9],
+        id = "drawer_menu_calibration",
+        on_grab  = calibration_on_grab,
+        on_close = calibration_on_close)
+    drawer_menu_calibration_container = Container(
+        position = [0.0, 0.0],
+        offset   = [0.0, 0.2],
+        scale    = [1.0, 1.0],
+        colour = vicos_gray_non_transparent,
+        id = "drawer_meanu_calibrated_container")
+
+    def create_calibration_menu():
+
+        calibration_title = TextField(
+            position = [0.05, 0.05],
+            text_scale = 0.68,
+            colour = [1.0, 1.0, 1.0, 0.75],
+            aspect_ratio = aspect_ratio,
+            id = "calibration_title")
+        calibration_title.set_text(font = font, text = "Kalibracija kamere")
+        calibration_title.center_x()
+
+        # Create live feed component
+
+        def get_original(gui: Gui, state: State):
+            return state.echolib_handler.get_camera_stream()
+
+        def get_zoom(gui: Gui, state: State):
+
+            zoom_margin_y = 800
+            zoom_maring_x = np.int32(np.floor(zoom_margin_y/camera_aspect_ratio))
+
+            image = state.echolib_handler.get_camera_stream()
+
+            if image is None:
+                return None
+
+            return image[zoom_maring_x:-zoom_maring_x, zoom_margin_y:-zoom_margin_y, :]
+
+        def get_display(position, scale, title, get_texture, id):
+
+            calibration_live_feed_container = Container(
+                position = position,
+                scale    = [scale/camera_aspect_ratio, scale],
+                colour = [1.0, 1.0, 1.0, 0.8],
+                id = f"calibration_display_container_ {id}") 
+
+            calibration_display_live_feed = DisplayTexture(
+                position = [0.1, 0.07],
+                scale    = [(scale - 0.01)/camera_aspect_ratio, scale - 0.05],
+                aspect = camera_aspect_ratio,
+                id = f"calibration_display_{id}",
+                get_texture = get_texture)
+
+            calibration_live_feed_title = TextField(
+                    position = [0.05, 0.05],
+                    text_scale = 0.7,
+                    colour = [0.0, 0.0, 0.0, 0.75],
+                    aspect_ratio = aspect_ratio, 
+                    id = f"calibration_display_title_{id}")
+
+            calibration_live_feed_title.set_text(font = font, text = title)
+            calibration_live_feed_title.center_x()
+
+            calibration_live_feed_title.depends_on(element = calibration_live_feed_container)
+            calibration_display_live_feed.center_x()
+
+            calibration_display_live_feed.depends_on(element = calibration_live_feed_container)
+
+            return calibration_live_feed_container
+
+        d_original = get_display(position = [0.025, 0.28], scale = 0.62, title = "Originalna velikost", get_texture = get_original, id = 0)
+        d_zoom     = get_display(position = [0.51,  0.28], scale = 0.62, title = "Povečana velikost",   get_texture = get_zoom, id = 1)
+
+        button_container = Container(
+            position = [0.01, 0.08],
+            scale  = [1.0, 0.2],
+            depth  = 0.97,
+            colour = [1.0, 1.0, 1.0, 0.5],
+            id = "button_contianer")
+
+        button_container.command_chain.pop(1)
+
+        button_awb = Button(
+            position = [0.025, 0.04],
+            offset = [0.0, 0.015*aspect_ratio],
+            scale  = [0.22, 0.09],
+            colour = vicos_red,
+            id = "button_awb")
+
+        button_awb_text = TextField(
+            position = [0.0, 0.0],
+            text_scale = 0.68,
+            colour = [1.0, 1.0, 1.0, 0.75],
+            aspect_ratio = aspect_ratio, 
+            id = "button_awb_text")
+        button_awb_text.set_text(font = font, text = "Samodejna raven beline")
+        button_awb_text.center_x()
+        button_awb_text.center_y()
+
+        button_awb_text.depends_on(element = button_awb)
+
+        button_ax = Button(
+            position = [0.275, 0.04],
+            offset = [0.0, 0.015*aspect_ratio],
+            scale  = [0.22, 0.09],
+            colour = vicos_red,
+            id = "button_ax")
+
+        button_ax_text = TextField(
+            position = [0.0, 0.0],
+            text_scale = 0.68,
+            colour = [1.0, 1.0, 1.0, 0.75],
+            aspect_ratio = aspect_ratio, 
+            id = "button_ax_text")
+        button_ax_text.set_text(font = font, text = "Samodejna osvetljitev")
+        button_ax_text.center_x()
+        button_ax_text.center_y()
+
+        button_ax_text.depends_on(element = button_ax)
+   
+        def slider_awb_get_range(slider: RangeSlider, custom_data):
+            ranges = custom_data.echolib_handler.docker_camera_ranges
+
+            if ranges is None:
+                return None
+
+            for i in range(0, len(ranges), 3):
+
+                if ranges[i] == "BalanceRatio":
+                    return (float(ranges[i + 1]), float(ranges[i + 2]))
+
+        def slider_ax_get_range(slider: RangeSlider, custom_data):
+            ranges = custom_data.echolib_handler.docker_camera_ranges
+
+            if ranges is None:
+                return None
+
+            for i in range(0, len(ranges), 3):
+
+                # Halve max exposure time
+                if ranges[i] == "ExposureTime": 
+                    #return (float(ranges[i + 1]), float(ranges[i + 2]))
+                    return (float(ranges[i + 1]), 39062.3407109375)
+
+        slider_awb_to_red = AnimationList(
+            transform = ("colour", vicos_red),
+            duration  = 0.2,
+            id = "slider_awb_to_red")
+
+        slider_awb_to_white = AnimationList(
+            transform = ("colour", [1.0, 1.0, 1.0, 1.0]),
+            duration  = 0.2,
+            id = "slider_awb_to_white")
+
+        slider_ax_to_red = AnimationList(
+            transform = ("colour", vicos_red),
+            duration  = 0.2,
+            id = "slider_ax_to_red")
+
+        slider_ax_to_white = AnimationList(
+            transform = ("colour", [1.0, 1.0, 1.0, 1.0]),
+            duration  = 0.2,
+            id = "slider_ax_to_white")
+
+        slider_awb = RangeSlider(
+            position = [0.58, 0.04],
+            scale = [0.15, 0.01],
+            range_bottom = 0.0,
+            range_top    = 1.0,
+            colour = vicos_red,
+            aspect_ratio = aspect_ratio,
+            get_range = slider_awb_get_range,
+            id = "range_slider_awb")
+        slider_awb.circle.animations = {slider_awb_to_red.id: slider_awb_to_red, slider_awb_to_white.id: slider_awb_to_white}
+
+        slider_ax = RangeSlider(
+            position = [0.78, 0.04],
+            scale = [0.15, 0.01],
+            range_bottom = 0.0,
+            range_top    = 1.0,
+            colour = vicos_red,
+            aspect_ratio = aspect_ratio,
+            get_range = slider_ax_get_range,
+            id = "range_slider_ax")
+        slider_ax.circle.animations = {slider_ax_to_red.id: slider_ax_to_red, slider_ax_to_white.id: slider_ax_to_white}
+
+        slider_awb_text = TextField(
+            position = [0.575, 0.3],
+            text_scale = 0.68,
+            colour = [1.0, 1.0, 1.0, 0.75],
+            aspect_ratio = aspect_ratio, 
+            id = "slider_awb_text")
+        slider_awb_text.set_text(font = font, text = "Raven beline: {:.2f}".format(slider_awb.selected_value))
+
+        slider_ax_text = TextField(
+            position = [0.76, 0.3],
+            text_scale = 0.68,
+            colour = [1.0, 1.0, 1.0, 0.75],
+            aspect_ratio = aspect_ratio, 
+            id = "slider_ax_text")
+        slider_ax_text.set_text(font = font, text = "Čas osvetlitve: {:.3f} ms".format(slider_ax.selected_value*1e-6))
+
+        def slider_awb_on_update(slider: RangeSlider, custom_data):
+            slider_awb_text.set_text(font = font, text = "Raven beline: {:.2f}".format(slider.selected_value))
+
+        def slider_ax_on_update(slider: RangeSlider, custom_data):
+            slider_ax_text.set_text(font = font, text = "Čas osvetlitve: {:.3f} ms".format(slider.selected_value*1e-6))
+
+        def slider_awb_on_select(slider: RangeSlider, custom_data):
+            custom_data.echolib_handler.append_camera_command(f"BalanceRatio {slider.selected_value}")
+
+        def slider_ax_on_select(slider: RangeSlider, custom_data):
+            custom_data.echolib_handler.append_camera_command(f"ExposureTime {slider.selected_value}")
+
+        def button_awb_on_click(button: Button, gui: Gui, custom_data):
+            
+            if button.mouse_click_count % 2:
+
+                slider_awb.circle.animation_play(slider_awb_to_red.id)
+                slider_awb.lock()
+
+                button.set_colour(vicos_gray)
+
+                custom_data.echolib_handler.append_camera_command(f"BalanceWhiteAuto Once")
+            else:
+
+                slider_awb.circle.animation_play(slider_awb_to_white.id)
+                slider_awb.unlock()
+    
+                button.set_colour(vicos_red)
+
+                custom_data.echolib_handler.append_camera_command(f"BalanceWhiteAuto Off")
+
+        def button_ax_on_click(button: Button, gui: Gui, custom_data):
+
+            if button.mouse_click_count % 2:
+
+                slider_ax.circle.animation_play(slider_ax_to_red.id)
+                slider_ax.lock()
+
+                button.set_colour(vicos_gray)
+
+                custom_data.echolib_handler.append_camera_command(f"ExposureAuto Once")
+            else:
+
+                slider_ax.circle.animation_play(slider_ax_to_white.id)
+                slider_ax.unlock()
+
+                button.set_colour(vicos_red)
+
+                custom_data.echolib_handler.append_camera_command(f"ExposureAuto Off")
+
+        button_awb.on_click = button_awb_on_click
+        button_ax.on_click  = button_ax_on_click
+
+        slider_awb.on_value_update  = slider_awb_on_update
+        slider_awb.on_select = slider_awb_on_select
+
+        slider_ax.on_value_update  = slider_ax_on_update
+        slider_ax.on_select = slider_ax_on_select
+
+        button_awb.center_y()
+        button_ax.center_y()
+        slider_awb.center_y()
+        slider_ax.center_y()
+
+        button_awb.depends_on(element = button_container)
+        button_ax.depends_on(element  = button_container)
+        slider_awb.depends_on(element = button_container)
+        slider_ax.depends_on(element  = button_container)
+        slider_awb_text.depends_on(element = button_container)
+        slider_ax_text.depends_on(element = button_container)
+
+        return [d_original, d_zoom, calibration_title, button_container]
+
+    drawer_menu_calibration_container.depends_on(element = drawer_menu_calibration)
     
     def hint_constructor():
 
@@ -327,9 +619,14 @@ def scene_primary(windowWidth: int, windowHeight: int, application_state: State,
     hint = hint_constructor()
     hint.depends_on(element = display_screen)
 
+    # Calibration drawer is going to be drawn over hint
+    # and over the demo drawer menu
+    drawer_menu_calibration.depends_on(element = display_screen)
+    drawer_menu.depends_on(element = display_screen)
+
     #### Construct demos ####
 
-    demo_buttons         = []
+    demo_buttons          = []
     demo_video_buttons    = []
     demo_buttons_position = 0.05
 
@@ -572,43 +869,22 @@ def main():
     scene = scene_primary(gui.width, gui.height, application_state, font)
     scene.update_geometry(parent = None)
 
-    window = gui.window
-    while not glfw.window_should_close(window):
+    while not gui.should_window_close():
 
-        poll_events()
-
-        # To process all mouse events without dropping one if two might happen in the
-        # same glfw.poll_events() loop call, the events are recorded in a buffer and
-        # popped one by one at each iteration.
-        gui.mouse_press_event = gui.mouse_press_event_stack.pop(0) if len(gui.mouse_press_event_stack) > 0 else None
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        gui.poll_events()
+        gui.clear_screen()
 
         scene.execute(parent = None, gui = gui, custom_data = application_state)
         
-        swap_buffers(window)
+        gui.swap_buffers()
 
-        gui.frames += 1
-        gui.dx = gui.dy = 0.0
+        # Resets camera image so no unecessary re-renders are done
+        application_state.echolib_handler.set_camera_to_none()
 
-        """ timeNow = time.time()
-        dif = timeNow - gui.time_fps
-
-        if dif >= 1.0:
-            print("{:.2f} fps".format(gui.frames/dif))
-
-            gui.frames  = 0
-            gui.time_fps = time.time() """
-
-        # Handle resizing
-        if (gui.resize_event is not None) and ((time.time() - gui.resize_event) >= 0.5):
-
-            glViewport(0, 0, gui.width, gui.height)
+        if gui.should_window_resize():
 
             scene = scene_primary(gui.width, gui.height, application_state, font)
             scene.update_geometry(parent = None)
-
-            gui.resize_event = None
 
     application_state.echolib_handler.running = False
     application_state.echolib_handler.handler_thread.join()

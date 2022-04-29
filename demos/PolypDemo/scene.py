@@ -54,9 +54,11 @@ def get_scene(parameters):
         camera_image = echolib_handler.get_camera_stream()
 
         if frame is not None:
+            print("Frame not none?")
+
             state.polyp_detection_time = time.time()
 
-        if state.polyp_detection_time is None or time.time() - state.polyp_detection_time > 5.0:
+        if (state.polyp_detection_time is None) or (time.time() - state.polyp_detection_time > 5.0):
             state.polyp_detection_time = None
 
             return camera_image
